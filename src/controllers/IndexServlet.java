@@ -37,12 +37,35 @@ public class IndexServlet extends HttpServlet {
 
         //Message.javaのクエリ"getAllMessages"を実行し、結果をリストに格納する。
         //getAllMessagesは全ての投稿を取得しホーム画面index.jsp表示させるために行う。
-        List<Message> messages = em.createNamedQuery("getAllMessages", Message.class).getResultList();
+        // 開くページ数を取得（デフォルトは1ページ目）
+        int page = 1;
+        try {
+            page = Integer.parseInt(request.getParameter("page"));
+        } catch(NumberFormatException e) {}
 
+        // 最大件数と開始位置を指定してメッセージを取得
+        List<Message> messages = em.createNamedQuery("getAllMessages", Message.class)
+                                   .setFirstResult(15 * (page - 1))
+                                   .setMaxResults(15)
+                                   .getResultList();
+
+
+        // 全件数を取得
+        long messages_count = (long)em.createNamedQuery("getMessagesCount", Long.class)
+                                      .getSingleResult();
         em.close();
 
         //リクエストスコープに値を設定し、index.jspに渡す。
         request.setAttribute("messages", messages);
+        request.setAttribute("messages_count", messages_count);     // 全件数
+        request.setAttribute("page", page);                         // ページ数
+
+        // フラッシュメッセージがセッションスコープにセットされていたら
+        // リクエストスコープに保存する（セッションスコープからは削除）
+        if(request.getSession().getAttribute("flush") != null) {
+            request.setAttribute("flush", request.getSession().getAttribute("flush"));
+            request.getSession().removeAttribute("flush");
+        }
 
         RequestDispatcher rd = request.getRequestDispatcher("/WEB-INF/views/messages/index.jsp");
         rd.forward(request, response);
